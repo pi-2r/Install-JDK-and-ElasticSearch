@@ -11,7 +11,8 @@ echo "Debian Update"
 apt-get update
 apt-get dist-upgrade
 echo "Downloading of JDK"
-wget http://download.oracle.com/otn-pub/java/jdk/8u25-b17/jdk-8u25-linux-x64.tar.gz
+COOKIE="gpw_e24=x; oraclelicense=accept-securebackup-cookie"
+wget --header="Cookie: $COOKIE" http://download.oracle.com/otn-pub/java/jdk/8u25-b17/jdk-8u25-linux-x64.tar.gz
 
 echo "Looking for JDK archive..."
 VERSION=`ls jdk-*-linux-*.tar.gz 2>/dev/null | awk -F '-' '{print $2}' | awk -F 'u' '{print $1}' | sort -n | tail -1`
@@ -113,6 +114,7 @@ wget https://download.elasticsearch.org/elasticsearch/elasticsearch/elasticsearc
 
 
 dpkg -i elasticsearch-1.4.2.deb
+update-rc.d elasticsearch defaults 95 10
 echo "Done."
 
 echo "Cleaning ..."
