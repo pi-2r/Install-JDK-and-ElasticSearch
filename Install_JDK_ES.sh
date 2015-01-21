@@ -176,14 +176,14 @@ sedeasy 'SYSLOG_SG_ENAB      no' 'SYSLOG_SG_ENAB      yes' /etc/login.defs
 echo -e "\033[32m[+] Backup of sshd_config \033[0m"
 cp /etc/ssh/sshd_config /etc/ssh/sshd_config_backup
 
-echo -e "\033[32m[+] Change the default SSH port\033[0m"
-sedeasy '#   Port 22' '    Port $ssh_port' /etc/ssh/ssh_config
+#echo -e "\033[32m[+] Change the default SSH port\033[0m"
+#sedeasy '#   Port 22' '    Port $ssh_port' /etc/ssh/ssh_config
 
-echo -e "\033[32m[+] Disable SSH login for the root user\033[0m"
-sedeasy 'PermitRootLogin' 'PermitRootLogin no' /etc/ssh/ssh_config
+#echo -e "\033[32m[+] Disable SSH login for the root user\033[0m"
+#sedeasy 'PermitRootLogin' 'PermitRootLogin no' /etc/ssh/ssh_config
 
-echo -e "\033[32m[+] Update iptables \033[0m"
-iptables -A INPUT  -p tcp -m tcp --dport $ssh_port -j ACCEPT
+#echo -e "\033[32m[+] Update iptables \033[0m"
+#iptables -A INPUT  -p tcp -m tcp --dport $ssh_port -j ACCEPT
 
 echo -e "\033[32m[+] Change configuration of Portsentry \033[0m"
 sedeasy 'BLOCK_UDP="0"' 'BLOCK_UDP="1"' /etc/portsentry/portsentry.conf
