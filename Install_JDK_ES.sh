@@ -2,7 +2,7 @@
 
 cluster_name="Meetup_Cluster"
 node_name="Node_1"
-host='["127.0.0.1", "192.168.1.17"]'
+host="['127.0.0.1', '192.168.1.17']"
 ssh_port="1242"
 
 
@@ -12,8 +12,13 @@ if [[ $EUID -ne 0 ]]; then
    exit 1
 fi
 
+function sedeasy {
+  sed -i "s/$(echo $1 | sed -e 's/\([[\/.*]\|\]\)/\\&/g')/$(echo $2 | sed -e 's/[\/&]/\\&/g')/g" $3
+}
+
 echo -e "\033[32m[+] Debian Update \033[0m"
 apt-get update > /dev/null
+
 echo -e "\033[32m[+] Installation of the following packages: iptables, libpam-cracklib, fail2ban, portsentry \033[0m"
 apt-get install -y iptables libpam-cracklib fail2ban portsentry > /dev/null
 #apt-get dist-upgrade
@@ -119,13 +124,15 @@ wget https://download.elasticsearch.org/elasticsearch/elasticsearch/elasticsearc
 
 dpkg -i elasticsearch-1.4.2.deb
 update-rc.d elasticsearch defaults 95 10
+
+
 echo -e "\033[32m[+] Configuration of your ElasticSearch Cluster \033[0m"
-command sed -i -e 's/#cluster.name: elasticsearch.*/cluster.name: '$cluster_name'/' '/etc/elasticsearch/elasticsearch.yml'
-command sed -i -e 's/#node.name: "Franz Kafka".*/node.name: '$node_name'/' '/etc/elasticsearch/elasticsearch.yml'
-command sed -i -e 's/#index.number_of_shards: 5.*/index.number_of_shards: 1/' '/etc/elasticsearch/elasticsearch.yml'
-command sed -i -e 's/#index.number_of_replicas: 1.*/index.number_of_replicas: 1/' '/etc/elasticsearch/elasticsearch.yml'
-command sed -i -e 's/#discovery.zen.ping.multicast.enabled: false.*/discovery.zen.ping.multicast.enabled: false/' '/etc/elasticsearch/elasticsearch.yml'
-command sed -i -e 's/#discovery.zen.ping.unicast.hosts: ["host1", "host2:port"].*/#discovery.zen.ping.unicast.hosts: '$host'/' '/etc/elasticsearch/elasticsearch.yml'
+sedeasy '#cluster.name: elasticsearch' 'cluster.name: '$cluster_name'' /etc/elasticsearch/elasticsearch.yml
+sedeasy '#node.name: "Franz Kafka"' 'node.name: '$node_name'' /etc/elasticsearch/elasticsearch.yml
+sedeasy '#index.number_of_shards: 5' "index.number_of_shards: 1" /etc/elasticsearch/elasticsearch.yml
+sedeasy '#index.number_of_replicas: 1' "index.number_of_replicas: 1" /etc/elasticsearch/elasticsearch.yml
+sedeasy '#discovery.zen.ping.multicast.enabled: false' 'discovery.zen.ping.multicast.enabled: false' /etc/elasticsearch/elasticsearch.yml
+sedeasy '#discovery.zen.ping.unicast.hosts: ["host1", "host2:port"]' "discovery.zen.ping.unicast.hosts: $host" /etc/elasticsearch/elasticsearch.yml
 
 echo -e "\033[32m[+]  Done. \033[0m"
 
@@ -133,6 +140,13 @@ echo -e "\033[32m[+] Cleaning ...\033[0m"
 rm jdk-8u25-linux-x64.tar.gz > /dev/null
 rm elasticsearch-1.4.2.deb > /dev/null
 apt-get autoclean > /dev/null
+
+echo -e "\033[32m[+] Install all plugin of ElasticSearch \033[0m"
+cd /usr/share/elasticsearch/bin
+./plugin --install elasticsearch/marvel/latest > /dev/null
+./plugin --install mobz/elasticsearch-head > /dev/null
+./plugin --install lmenezes/elasticsearch-kopf/1.4.2 > /dev/null
+./plugin --install royrusso/elasticsearch-HQ > /dev/null
 
 echo -e "\033[32m[+] Securing your Cluster. \033[0m"
 
@@ -155,31 +169,36 @@ chmod 644 passwd group
 chmod 400 shadow gshadow
 
 echo -e "\033[32m[+] Enable logging of su activity . \033[0m"
-command sed -i -e 's/SYSLOG_SU_ENAB      no.*/SYSLOG_SU_ENAB      yes/' '/etc/login.defs'
-command sed -i -e 's/SYSLOG_SG_ENAB      no.*/SYSLOG_SG_ENAB      yes/' '/etc/login.defs'
+sedeasy 'SYSLOG_SU_ENAB      no' 'SYSLOG_SU_ENAB      yes' /etc/login.defs
+sedeasy 'SYSLOG_SG_ENAB      no' 'SYSLOG_SG_ENAB      yes' /etc/login.defs
+
 
 echo -e "\033[32m[+] Backup of sshd_config \033[0m"
 cp /etc/ssh/sshd_config /etc/ssh/sshd_config_backup
 
 echo -e "\033[32m[+] Change the default SSH port\033[0m"
-command sed -i -e 's/#   Port 22.*/    Port '$ssh_port'/' '/etc/ssh/ssh_config'
+sedeasy '#   Port 22' '    Port $ssh_port' /etc/ssh/ssh_config
 
 echo -e "\033[32m[+] Disable SSH login for the root user\033[0m"
-command sed -i -e 's/PermitRootLogin.*/PermitRootLogin no/' '/etc/ssh/sshd_config'
+sedeasy 'PermitRootLogin' 'PermitRootLogin no' /etc/ssh/ssh_config
 
 echo -e "\033[32m[+] Update iptables \033[0m"
 iptables -A INPUT  -p tcp -m tcp --dport $ssh_port -j ACCEPT
 
 echo -e "\033[32m[+] Change configuration of Portsentry \033[0m"
-command sed -i -e 's/BLOCK_UDP="0".*/BLOCK_UDP="1"/' '/etc/portsentry/portsentry.conf'
-command sed -i -e 's/BLOCK_TCP="0".*/BLOCK_TCP="1"/' '/etc/portsentry/portsentry.conf'
-command sed -i -e 's/KILL_ROUTE="/sbin/route add -host $TARGET$ reject".*/KILL_ROUTE="/sbin/iptables -I INPUT -s $TARGET$ -j DROP"/' '/etc/portsentry/portsentry.conf'
-command sed -i -e 's/RESOLVE_HOST = "0".*/RESOLVE_HOST = "1"/' '/etc/portsentry/portsentry.conf'
+sedeasy 'BLOCK_UDP="0"' 'BLOCK_UDP="1"' /etc/portsentry/portsentry.conf
+sedeasy 'BLOCK_TCP="0"' 'BLOCK_TCP="1"' /etc/portsentry/portsentry.conf
+sedeasy 'KILL_ROUTE="/sbin/route add -host $TARGET$ reject"' 'KILL_ROUTE="/sbin/iptables -I INPUT -s $TARGET$ -j DROP"' /etc/portsentry/portsentry.conf
+sedeasy 'RESOLVE_HOST = "0"' 'RESOLVE_HOST = "1"' /etc/portsentry/portsentry.conf
+sedeasy 'TCP_MODE="tcp"' 'TCP_MODE="atcp"' /etc/default/portsentry
+sedeasy 'UDP_MODE="udp"' 'UDP_MODE="sudp"' /etc/default/portsentry
 
+echo -e "\033[32m[+] Restarting portsentry \033[0m"
+/etc/init.d/portsentry restart > /dev/null
 
 echo -e "\033[32m[+] Restarting sshd \033[0m"
 /etc/init.d/ssh restart
 
 echo -e "\033[32m[+] Change configuration of Fail2Ban \033[0m"
-command sed -i -e 's/maxretry = 6.*/maxretry = 3/' '/etc/ssh/sshd_config'
+sedeasy '/maxretry = 6' 'maxretry = 3' /etc/fail2ban/jail.conf
 /etc/init.d/fail2ban restart > /dev/null
