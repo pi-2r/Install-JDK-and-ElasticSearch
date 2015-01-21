@@ -13,9 +13,10 @@ if [[ $EUID -ne 0 ]]; then
 fi
 
 echo -e "\033[32m[+] Debian Update \033[0m"
-apt-get update
-apt-get install -y iptables libpam-cracklib
-apt-get dist-upgrade
+apt-get update > /dev/null
+echo -e "\033[32m[+] Installation of the following packages: iptables, libpam-cracklib, fail2ban, portsentry \033[0m"
+apt-get install -y iptables libpam-cracklib fail2ban portsentry > /dev/null
+#apt-get dist-upgrade
 echo -e "\033[32m[+] Downloading of JDK \033[0m"
 COOKIE="gpw_e24=x; oraclelicense=accept-securebackup-cookie"
 wget --header="Cookie: $COOKIE" http://download.oracle.com/otn-pub/java/jdk/8u25-b17/jdk-8u25-linux-x64.tar.gz
@@ -129,11 +130,9 @@ command sed -i -e 's/#discovery.zen.ping.unicast.hosts: ["host1", "host2:port"].
 echo -e "\033[32m[+]  Done. \033[0m"
 
 echo -e "\033[32m[+] Cleaning ...\033[0m"
-rm jdk-8u25-linux-x64.tar.gz
-rm elasticsearch-1.4.2.deb
-apt-get autoclean
-
-
+rm jdk-8u25-linux-x64.tar.gz > /dev/null
+rm elasticsearch-1.4.2.deb > /dev/null
+apt-get autoclean > /dev/null
 
 echo -e "\033[32m[+] Securing your Cluster. \033[0m"
 
@@ -163,13 +162,24 @@ echo -e "\033[32m[+] Backup of sshd_config \033[0m"
 cp /etc/ssh/sshd_config /etc/ssh/sshd_config_backup
 
 echo -e "\033[32m[+] Change the default SSH port\033[0m"
-sudo command sed -i -e 's/#   Port 22.*/   Port '$ssh_port'/' '/etc/ssh/sshd_config'
+command sed -i -e 's/#   Port 22.*/    Port '$ssh_port'/' '/etc/ssh/ssh_config'
 
 echo -e "\033[32m[+] Disable SSH login for the root user\033[0m"
-sudo command sed -i -e 's/PermitRootLogin.*/PermitRootLogin no/' '/etc/ssh/sshd_config'
+command sed -i -e 's/PermitRootLogin.*/PermitRootLogin no/' '/etc/ssh/sshd_config'
 
 echo -e "\033[32m[+] Update iptables \033[0m"
-sudo iptables -A INPUT  -p tcp -m tcp --dport $ssh_port -j ACCEPT
+iptables -A INPUT  -p tcp -m tcp --dport $ssh_port -j ACCEPT
+
+echo -e "\033[32m[+] Change configuration of Portsentry \033[0m"
+command sed -i -e 's/BLOCK_UDP="0".*/BLOCK_UDP="1"/' '/etc/portsentry/portsentry.conf'
+command sed -i -e 's/BLOCK_TCP="0".*/BLOCK_TCP="1"/' '/etc/portsentry/portsentry.conf'
+command sed -i -e 's/KILL_ROUTE="/sbin/route add -host $TARGET$ reject".*/KILL_ROUTE="/sbin/iptables -I INPUT -s $TARGET$ -j DROP"/' '/etc/portsentry/portsentry.conf'
+command sed -i -e 's/RESOLVE_HOST = "0".*/RESOLVE_HOST = "1"/' '/etc/portsentry/portsentry.conf'
+
 
 echo -e "\033[32m[+] Restarting sshd \033[0m"
-/etc/init.d/sshd restart
+/etc/init.d/ssh restart
+
+echo -e "\033[32m[+] Change configuration of Fail2Ban \033[0m"
+command sed -i -e 's/maxretry = 6.*/maxretry = 3/' '/etc/ssh/sshd_config'
+/etc/init.d/fail2ban restart > /dev/null
