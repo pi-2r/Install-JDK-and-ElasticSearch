@@ -1,39 +1,45 @@
 #!/bin/bash
 
-echo "The script installs Oracle JDK and ElasticSearch."
+cluster_name="Meetup_Cluster"
+node_name="Node_1"
+host='["127.0.0.1", "192.168.1.17"]'
+ssh_port="1242"
 
+
+echo "The script installs Oracle JDK and ElasticSearch."
 if [[ $EUID -ne 0 ]]; then
-   echo "This script must be run as root."
+   echo -e "\033[31m[-] This script must be run as root. \033[0m"
    exit 1
 fi
 
-echo "Debian Update"
+echo -e "\033[32m[+] Debian Update \033[0m"
 apt-get update
+apt-get install -y iptables libpam-cracklib
 apt-get dist-upgrade
-echo "Downloading of JDK"
+echo -e "\033[32m[+] Downloading of JDK \033[0m"
 COOKIE="gpw_e24=x; oraclelicense=accept-securebackup-cookie"
 wget --header="Cookie: $COOKIE" http://download.oracle.com/otn-pub/java/jdk/8u25-b17/jdk-8u25-linux-x64.tar.gz
 
-echo "Looking for JDK archive..."
+echo -e "\033[32m[+] Looking for JDK archive...\033[0m"
 VERSION=`ls jdk-*-linux-*.tar.gz 2>/dev/null | awk -F '-' '{print $2}' | awk -F 'u' '{print $1}' | sort -n | tail -1`
 UPDATE=`ls jdk-$VERSION*-linux-*.tar.gz 2>/dev/null | awk -F '-' '{print $2}' | awk -F 'u' '{print $2}' | sort -n | tail -1`
 [ ! -z $UPDATE ] && UPDATE_SUFFIX="u$UPDATE"
 LATEST_JDK_ARCHIVE=`ls jdk-$VERSION$UPDATE_SUFFIX-linux-*.tar.gz 2>/dev/null | sort | tail -1`
 if [ -z "$LATEST_JDK_ARCHIVE" ] || [ -z "$VERSION" ]; then
-    echo "Archive with JDK wasn't found. It should be in the current directory."
+    echo -e "\033[31m[-]Archive with JDK wasn't found. It should be in the current directory.\033[0m"
     exit 1
 fi
-echo "Found archive: $LATEST_JDK_ARCHIVE"
-echo "Version: $VERSION"
+echo -e "\033[32m[+] Found archive: $LATEST_JDK_ARCHIVE \033[0m"
+echo -e "\033[32m[+] Version: $VERSION \033[0m"
 [ ! -z $UPDATE ] && echo "Update: $UPDATE"
 
 INSTALL_DIR=/usr/lib/jvm
 JDK_DIR=$INSTALL_DIR/java-$VERSION-oracle
 
-echo "Extracting archive..."
+echo -e "\033[32m[+] Extracting archive... \033[0m"
 tar -xzf $LATEST_JDK_ARCHIVE
 if [ $? -ne 0 ]; then
-    echo "Error while extraction archive."
+    echo -e "\033[31m[-] Error while extraction archive.\033[0m"
     exit 1
 fi
 
@@ -43,11 +49,11 @@ if [ ! -z $UPDATE ]; then
 fi
 
 if [ ! -d $ARCHIVE_DIR ]; then
-    echo "Unexpected archive content (No $ARCHIVE_DIR directory)."
+    echo -e "\033[31m[-] Unexpected archive content (No $ARCHIVE_DIR directory).\033[0m"
     exit 1
 fi
 
-echo "Moving content to installation directory..."
+echo -e "\033[32m[+] Moving content to installation directory...\033[0m"
 [ ! -e $INSTALL_DIR ] && mkdir -p $INSTALL_DIR
 [ -e $INSTALL_DIR/$ARCHIVE_DIR ] && rm -r $INSTALL_DIR/$ARCHIVE_DIR/
 [ -e $JDK_DIR ] && rm $JDK_DIR
@@ -56,10 +62,7 @@ ln -sf $INSTALL_DIR/$ARCHIVE_DIR/ $JDK_DIR
 ln -sf $INSTALL_DIR/$ARCHIVE_DIR/ $INSTALL_DIR/default-java
 
 
-echo "Updating alternatives..."
-# The following part has been taken from script
-# http://webupd8.googlecode.com/files/update-java-0.5b
-# and modified to make it work without X-server.
+echo -e "\033[32m[+] Updating alternatives...\033[0m"
 
 gzip -9 $JDK_DIR/man/man1/*.1 >/dev/null 2>&1 &
 
@@ -92,32 +95,81 @@ else  #no man pages available
   done
 fi
 
-echo "Setting up Mozilla plugin..."
+echo -e "\033[32m[+] Setting up Mozilla plugin...\033[0m"
 #File links that apt-get misses
 [ -f $JDK_DIR/bin/libnpjp2.so ] && update-alternatives --install \
   /usr/lib/mozilla/plugins/libnpjp2.so libnpjp2.so $JDK_DIR/jre/lib/i386/libnpjp2.so $LATEST
 
-echo "Setting up env. variable JAVA_HOME..."
+echo -e "\033[32m[+] Setting up env. variable JAVA_HOME... \033[0m"
 cat > /etc/profile.d/java-home.sh << "EOF"
 export JAVA_HOME="${JDK_DIR}"
 export PATH="$JAVA_HOME/bin:$PATH"
 EOF
 sed -i -e 's,${JDK_DIR},'$JDK_DIR',g' /etc/profile.d/java-home.sh
 
-echo "Checking version..."
+echo -e "\033[32m[+] Checking version... \033[0m"
 java -version
-echo "Done."
+echo -e "\033[32m[+] Done. \033[0m"
 
 
-echo "ElasticSearch"
+echo -e "\033[32m[+] Downloading ElasticSearch \033[0m"
 wget https://download.elasticsearch.org/elasticsearch/elasticsearch/elasticsearch-1.4.2.deb
 
 
 dpkg -i elasticsearch-1.4.2.deb
 update-rc.d elasticsearch defaults 95 10
-echo "Done."
+echo -e "\033[32m[+] Configuration of your ElasticSearch Cluster \033[0m"
+command sed -i -e 's/#cluster.name: elasticsearch.*/cluster.name: '$cluster_name'/' '/etc/elasticsearch/elasticsearch.yml'
+command sed -i -e 's/#node.name: "Franz Kafka".*/node.name: '$node_name'/' '/etc/elasticsearch/elasticsearch.yml'
+command sed -i -e 's/#index.number_of_shards: 5.*/index.number_of_shards: 1/' '/etc/elasticsearch/elasticsearch.yml'
+command sed -i -e 's/#index.number_of_replicas: 1.*/index.number_of_replicas: 1/' '/etc/elasticsearch/elasticsearch.yml'
+command sed -i -e 's/#discovery.zen.ping.multicast.enabled: false.*/discovery.zen.ping.multicast.enabled: false/' '/etc/elasticsearch/elasticsearch.yml'
+command sed -i -e 's/#discovery.zen.ping.unicast.hosts: ["host1", "host2:port"].*/#discovery.zen.ping.unicast.hosts: '$host'/' '/etc/elasticsearch/elasticsearch.yml'
 
-echo "Cleaning ..."
+echo -e "\033[32m[+]  Done. \033[0m"
+
+echo -e "\033[32m[+] Cleaning ...\033[0m"
 rm jdk-8u25-linux-x64.tar.gz
 rm elasticsearch-1.4.2.deb
 apt-get autoclean
+
+
+
+echo -e "\033[32m[+] Securing your Cluster. \033[0m"
+
+echo -e "\033[32m[+] Prohibition compile or install a paquet  for a simple user. \033[0m"
+chmod o-x /usr/bin/gcc-*
+chmod o-x /usr/bin/make*
+chmod o-x /usr/bin/apt-get
+chmod o-x /usr/bin/dpkg
+
+echo -e "\033[32m[+] No Core Dump. \033[0m"
+echo "*   hard core 0" >> /etc/security/limits.conf
+echo "fs.suid_dumpable = 0" >> /etc/sysctl.conf
+echo 'ulimit -S -c 0 > /dev/null 2>&1' >> /etc/profile
+
+
+echo -e "\033[32m[+] Forbiden to read passwd et shadow \033[0m"
+cd /etc
+chown root:root passwd shadow group gshadow
+chmod 644 passwd group
+chmod 400 shadow gshadow
+
+echo -e "\033[32m[+] Enable logging of su activity . \033[0m"
+command sed -i -e 's/SYSLOG_SU_ENAB      no.*/SYSLOG_SU_ENAB      yes/' '/etc/login.defs'
+command sed -i -e 's/SYSLOG_SG_ENAB      no.*/SYSLOG_SG_ENAB      yes/' '/etc/login.defs'
+
+echo -e "\033[32m[+] Backup of sshd_config \033[0m"
+cp /etc/ssh/sshd_config /etc/ssh/sshd_config_backup
+
+echo -e "\033[32m[+] Change the default SSH port\033[0m"
+sudo command sed -i -e 's/#   Port 22.*/   Port '$ssh_port'/' '/etc/ssh/sshd_config'
+
+echo -e "\033[32m[+] Disable SSH login for the root user\033[0m"
+sudo command sed -i -e 's/PermitRootLogin.*/PermitRootLogin no/' '/etc/ssh/sshd_config'
+
+echo -e "\033[32m[+] Update iptables \033[0m"
+sudo iptables -A INPUT  -p tcp -m tcp --dport $ssh_port -j ACCEPT
+
+echo -e "\033[32m[+] Restarting sshd \033[0m"
+/etc/init.d/sshd restart
