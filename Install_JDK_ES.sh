@@ -138,6 +138,9 @@ sedeasy '#discovery.zen.ping.unicast.hosts: ["host1", "host2:port"]' "discovery.
 echo -e "\033[32m[+] Marvel - Turn off logging \033[0m"
 marvel.agent.enabled: false
 
+echo -e "\033[32m[+] Starting ElasticSearch \033[0m"
+/etc/init.d/elasticsearch start > /dev/null
+
 echo -e "\033[32m[+]  Done. \033[0m"
 
 echo -e "\033[32m[+] Cleaning ...\033[0m"
