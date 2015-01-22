@@ -136,7 +136,7 @@ sedeasy '#discovery.zen.ping.multicast.enabled: false' 'discovery.zen.ping.multi
 sedeasy '#discovery.zen.ping.unicast.hosts: ["host1", "host2:port"]' "discovery.zen.ping.unicast.hosts: $host" /etc/elasticsearch/elasticsearch.yml
 
 echo -e "\033[32m[+] Marvel - Turn off logging \033[0m"
-marvel.agent.enabled: false
+echo "marvel.agent.enabled: false" >> /etc/elasticsearch/elasticsearch.yml
 
 echo -e "\033[32m[+] Starting ElasticSearch \033[0m"
 /etc/init.d/elasticsearch start > /dev/null
@@ -170,7 +170,7 @@ echo 'ulimit -S -c 0 > /dev/null 2>&1' >> /etc/profile
 
 
 echo -e "\033[32m[+] Forbiden to read passwd et shadow \033[0m"
-cd /etc
+cd /etc/
 chown root:root passwd shadow group gshadow
 chmod 644 passwd group
 chmod 400 shadow gshadow
