@@ -1,11 +1,5 @@
 # Install-JDK-and-ElasticSearch
 
-The instal script:
-
--java
--ElasticSearch
--Secure the virtual machine.
-
 Program specifically designed for the 12th  ElasticSearch Meetup at Microsoft.
 Title of the demonstration made with Reezocar "How to Mount a ElasticSearch cluster in few minutes on Microsoft Azure"
 
